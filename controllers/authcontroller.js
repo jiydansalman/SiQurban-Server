@@ -1,6 +1,7 @@
 const User = require('../models/usermodel');
 const UserProfile = require('../models/profileModel');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
 
@@ -44,6 +45,51 @@ exports.register = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             status: 'Error', message: 'Registration failed', error: error.message
+        });
+    }
+};
+
+exports.login = async (req, res) => {
+    try {
+        const {username, password} = req.body;
+        
+        const user = await User.findOne({ where: { username} });
+        if (!user) {
+            return res.status(404).json({
+                status: 'Error',
+                message: 'User tidak ditemukan'
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(404).json({
+                status: 'Error',
+                message: 'Password salah'
+            });
+        }
+
+        const token = jwt.sign(
+            {user_id: user.user_id, username: user.username},
+            process.env.JWT_SECRET || 'secret_siqurban',
+            {expiresIn: '12h'}
+        );
+
+        res.status(200).json({
+            status: 'Success',
+            message: 'Berhasil Login',
+            token: token,
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'Error',
+            message: 'Login gagal',
+            error: error.message
         });
     }
 };
